@@ -11,10 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.util.CollectionUtils;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,6 +25,8 @@ class SaveBiliVideoTests {
     private static final Table<String, String, InputOutputFile> universityCourseSeatTable
             = HashBasedTable.create();
 
+    private static final List<String> parts = new ArrayList<>();
+
     @Test
     void contextLoads() {
     }
@@ -38,13 +37,17 @@ class SaveBiliVideoTests {
 //                "D:\\videos\\blib\\79567276\\7\\80\\audio.m4s","D:\\videos\\blib\\my\\xx.mp4");
 //        File root = new File("D:\\videos\\blib");
         List<File> roots = new ArrayList<>();
-        File[] files = new File("E:\\videos2\\压缩bili").listFiles();
-        roots.addAll(Arrays.asList(files));
-//        roots.add(new File("D:\\videos\\blib\\842005319"));
+        //以config_db开头，文件后缀为.properties的将被选出来，其余被过滤掉
+//        File[] files = new File("E:\\videos2\\压缩bili").listFiles((dir, name) -> {
+//            if(StringUtils.equals(name,"848712363"))
+//                return false;
+//            return true;
+//        });
+//        roots.addAll(Arrays.asList(files));
+        roots.add(new File("E:\\videos2\\压缩bili\\89905283"));
 
         save2Local(roots);
     }
-
 
 
     public void save2Local(List<File> roots) throws IOException {
@@ -56,6 +59,11 @@ class SaveBiliVideoTests {
             }
             for (File twoLevelFile : twoLevelFiles) {
                 String pageName = twoLevelFile.getName();
+                if (StringUtils.equals("c_427311169", pageName)
+                        || StringUtils.equals("c_427312266", pageName) || StringUtils.equals("c_427313246", pageName)
+                        || StringUtils.equals("c_427313263", pageName)) {
+                    continue;
+                }
                 File[] threeLevelFiles = twoLevelFile.listFiles();
                 InputOutputFile inputOutputFile = new InputOutputFile();
                 for (File threeLevelFile : threeLevelFiles) {
@@ -66,21 +74,37 @@ class SaveBiliVideoTests {
                         String s = FileUtils.readFileToString(threeLevelFile, "utf-8");
                         JSONObject jsonObject = JSON.parseObject(s);
                         title = jsonObject.getString("title");
-                        title=StringUtils.replace(title," ","");
+                        title = StringUtils.replace(title, " ", "");
+                        title = StringUtils.replace(title, "/", "-");
                         JSONObject page_data = jsonObject.getJSONObject("page_data");
                         part = page_data.getString("part");
-                        part=StringUtils.replace(part," ","");
-                        File outputDir = new File("D:\\videos\\" + title);
-                        if (!outputDir.exists()) {
-                            outputDir.mkdir();
+                        if (part != null) {
+                            part = StringUtils.replace(part, " ", "");
+                            File outputDir = new File("E:\\videos2\\哔哩下载\\" + title);
+                            if (!outputDir.exists()) {
+                                outputDir.mkdir();
+                            }
                         }
+                        parts.add(part);
                         if (hasSome) {
                             if (pageName.length() == 1) {
                                 pageName = "0" + pageName;
                             }
-                            inputOutputFile.setOutput("D:\\videos\\" + title + "\\" + pageName + "-" + part + ".mp4");
+                            pageName = "b";
+                            if (StringUtils.isEmpty(part)) {
+                                inputOutputFile.setOutput("E:\\videos2\\哔哩下载\\" + title + "\\" + pageName + ".mp4");
+                            } else {
+                                inputOutputFile.setOutput("E:\\videos2\\哔哩下载\\" + title + "\\" + pageName + "-" + part + ".mp4");
+                            }
                         } else {
-                            inputOutputFile.setOutput("D:\\videos\\" + title + "\\" + part + ".mp4");
+                            if (StringUtils.isEmpty(part)) {
+                                inputOutputFile.setOutput("E:\\videos2\\哔哩下载\\" + title + ".mp4");
+                            } else {
+                                inputOutputFile.setOutput("E:\\videos2\\哔哩下载\\" + title + "\\" + part + ".mp4");
+                            }
+                        }
+                        if (part == null) {
+                            part = "-";
                         }
                         universityCourseSeatTable.put(title, part, inputOutputFile);
                     } else {
@@ -125,7 +149,7 @@ class SaveBiliVideoTests {
             br.set(new BufferedReader(new InputStreamReader(p.getInputStream(), Charset.forName("utf-8"))));
             String line = null;
             StringBuilder sb = new StringBuilder();
-            while ((line = br.get().readLine()) != null) {
+            while ((line = br.get().readLine()) != null && line.length() > 0) {
                 sb.append(line + "\n");
                 System.out.println(line);
             }
@@ -146,14 +170,41 @@ class SaveBiliVideoTests {
 
 
     @Test
-    public void deleteXml(){
-        File file=new File("D:\\videos\\监控 - 副本");
+    public void deleteXml() {
+        File file = new File("D:\\videos\\监控 - 副本");
         for (File listFile : file.listFiles()) {
             String name = listFile.getName();
-            if(StringUtils.endsWith(name,"xml")){
+            if (StringUtils.endsWith(name, "xml")) {
                 boolean delete = listFile.delete();
                 System.out.println(delete);
             }
+        }
+    }
+
+    @Test
+    public void clearPrefx() {
+        File root = new File("E:\\videos2\\哔哩下载\\阿里云云计算运维与服务器ECS管理工程师（完）");
+        File[] files = root.listFiles();
+        for (File file : files) {
+            transportFileName(file);
+        }
+    }
+
+    private void transportFileName(File file) {
+        if (file.isDirectory()) {
+            File[] files = file.listFiles();
+            for (File fileInFor : files) {
+                transportFileName(fileInFor);
+            }
+        } else {
+            String name = file.getName();
+            String absolutePath = file.getAbsolutePath();
+            String absoluteRootPath = StringUtils.substring(absolutePath, 0, absolutePath.lastIndexOf("\\"));
+            String[] split = name.split("-");
+            String realName = split[1];
+            File newFile = new File(absoluteRootPath, realName);
+            boolean b = file.renameTo(newFile);
+            System.out.println(b);
         }
     }
 }
